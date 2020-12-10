@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+#import sys
+#sys.path.append('/usr/include')  #Austin can get his life together
+
 import rospy
 from std_msgs.msg import Empty
 from std_msgs.msg import String
@@ -9,8 +12,10 @@ from sensor_msgs.msg import Image ## NEW
 from nav_msgs.msg import Odometry  ## NEW
 from cv_bridge import CvBridge ## NEW
 
-import cv2 ## NEW
+import cv2
 import numpy as np ## NEW
+
+
 
 # this is a global variable: all functions and methods in this file have access to it
 cmd_pub = rospy.Publisher("/drone/cmd_vel", Twist, queue_size=1)
@@ -19,6 +24,9 @@ error_previous = 0.0
 
 robot_x = 0.0  ## NEW
 robot_y =  0.0  ## NEW
+
+cX = 0
+cY = 0
 
 bridge = CvBridge() ## NEW - For Converting ROS Image to OpenCV Image
 
@@ -37,7 +45,10 @@ def poseCallback(msg):
     global robot_x ## NEW
     global robot_y  ## NEW
 
+    global cX
+    global cY
 
+    print(" desired x ", robot_x, " desired y ", robot_y) ## NEW
 
     # here I print the z component of the position (the height of the drone)
     #rospy.loginfo(rospy.get_caller_id() + "I heard %f", msg.position.z)
@@ -53,8 +64,7 @@ def poseCallback(msg):
     error_integral = error_integral + error*0.001
     error_derivative = (error - error_previous)/0.001
 
-    print(" desired x ", robot_x, " desired y ", robot_y) ## NEW
-
+    print(" target x ", cX, " target y ", cY) ## NEW
 
     # compute the command needed for the 
     linear_velocity_z = k_p*error + k_i*error_integral + k_d*error_derivative
@@ -74,26 +84,56 @@ def poseCallback(msg):
 def imageCallback(msg):
 
     global bridge
+    global cX
+    global cY
 
     cv_image = bridge.imgmsg_to_cv2(msg, desired_encoding='passthrough') #Convert ROS Image to OpenCV Image
 
-    print("aaa")
+    #print("aaa") #Test print
 
-    lower = np.array([240,240,240], dtype = "uint8")  ## Lower color bound (Off white)
+    lower = np.array([100,100,100], dtype = "uint8")  ## Lower color bound (Off white)
     upper = np.array([255,255,255], dtype = "uint8")  ## Upper color bound (White)
 
+    gray_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY) #returns grayscale image 
+
+    ### ------------------------------------------------- ###
+
+    # convert the grayscale image to binary image
+    ret,thresh = cv2.threshold(gray_image,127,255,0)
+	# calculate moments of binary image
+    M = cv2.moments(thresh)
+
+	# calculate x,y coordinate of center
+    if M["m00"] != 0:
+	    cX = int(M["m10"] / M["m00"])
+	    cY = int(M["m01"] / M["m00"])
+    else:
+	    cX, cY = 0, 0
+
+
+    # put text and highlight the center
+    cv2.circle(cv_image, (cX, cY), 5, (255, 255, 255), -1)
+    cv2.putText(cv_image, "centroid", (cX - 25, cY - 25),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+
+    # display the image
+    cv2.imshow("Image", cv_image)
+    cv2.waitKey(3)
+
+    ### ------------------------------------------------- ###
 
     mask = cv2.inRange(cv_image, lower, upper) #returns binary mask that fall within bounds
     output = cv2.bitwise_and(cv_image, cv_image, mask = mask) #computes underlying binary representation of integers in input array
 
-
-    cv2.imshow("Image window - Raw", cv_image) #Create Window to show the image
-    cv2.imshow("Image window - OpenCV", output) #Create Window to show the image
+    cv2.imshow("Image window - Grayscale", gray_image) #Create Window to show the image (grayscale)
+    #cv2.imshow("Image window - Raw", cv_image) #Create Window to show the image
+    #cv2.imshow("Image window - OpenCV", output) #Create Window to show the image
     cv2.waitKey(3) #Need to wait for window to load
 
 
 
-## NEWW function for poisitonal data
+## NEW function for poisitonal data
+# Fucntion not used to give positional data to aerial drone
+# Use for referencedef odomCallback(msg)
 def odomCallback(msg):
     global robot_x; global robot_y
     robot_x = msg.pose.pose.position.x
@@ -127,6 +167,3 @@ def my_first_controller():
 # this is the main function: the program starts here
 if __name__ == '__main__':
     my_first_controller()
-
-
-
