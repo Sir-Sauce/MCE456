@@ -26,6 +26,10 @@ error_previous = 0.0
 robot_x = 0.0  ## NEW
 robot_y =  0.0  ## NEW 
 
+desired_z = 20
+desired_y = 0.0
+desired_x = 1.0
+
 ### --- camera parameters --- ###
 
 af = 320.255 
@@ -56,21 +60,13 @@ bridge = CvBridge()
 
 
 
-
-#def robot_track(x, y):
-#    dist = math.sqrt(pow(abs(x),2)+pow(abs(y),2)) #computes distance from quadrotor pixels
-#    print(dist)
-
-
-
-
 # this is our callback function: it is executed any time a message on the specified topic
 # is received. In our case, the specified topic is /drone/gt_pose.
 # The message received will be available in the function through the variable msg  
 
 ### --- callback function --- ###
 def poseCallback(msg):
-    time.sleep(0.1) #slows continuous computation
+    time.sleep(0.05) #slows continuous computation
 
     global drone_x; drone_x = msg.position.x 
     global drone_y; drone_y = msg.position.y 
@@ -91,6 +87,10 @@ def poseCallback(msg):
     global cY
     global X
     global Y
+
+    global desired_z
+    global desired_y
+    global desired_x
 
     ### ---- Frame manipulation math below ---- ###
     
@@ -141,7 +141,7 @@ def poseCallback(msg):
         print(T_wc)
         print('T_wc')
 
-        P_ct = np.array([[X],[Y],[20.0],[1.0]])
+        P_ct = np.array([[X],[Y],[20.0],[1.0]]) 
         #Target array in camera frame
         print(' ')
         print(P_ct)
@@ -157,12 +157,36 @@ def poseCallback(msg):
         print('--------------------------------------------')
 
 
+    #if the drone sees the robot, then, 
+        # set the desired y
+            #desired_y = robot_y
+        # if pixel ht. x between 100 & 300 & z >= 5
+            # desired z -=
+        # elif pixel ht. x between 5 & 325
+            # set desired ht. to P cont. 
+            # desired_x = robot_x
+            # error_x = desired_x - msg.position.x
+        # elif first scan is true  
+            # desired z +=
+    # else 
+        # desired z = 20
+        # first scan = true
+
+    if (cX != 0.0 or cY != 0.0):
+        desired_y = robot_y
+        desired_x = robot_x - 1
+        if cY > 100 and cY < 300 and desired_z >= 2:
+            desired_z = msg.position.z   #slow the drone
+            desired_z = desired_z - 1
+        else:
+            desired_z = msg.position.z   #slow the drone
+            desired_z = desired_z + 0.5
+    #else:
+     #   desired_z = 20.0 
 
 
-
-
-
-
+        
+        
 
     print(" desired x ", robot_x, " desired y ", robot_y) ## robots actual coordinates from odom
     print(" target x pix ", cX, " target y pix ", cY) ## open image coordinates
@@ -172,23 +196,31 @@ def poseCallback(msg):
     #rospy.loginfo(rospy.get_caller_id() + "I heard %f", msg.position.z)
 
     # set the desired flight height here, and the gains of the controller
-    desired_z = 20.0  #in meters
-    k_p = 1.0 # proportional gain
-    k_i = 0.2 # integral gain
-    k_d = 0.0 # derivative gain
+    
+    #desired_z = 20.0  #in meters
+
+
+    #k_p = 1.0 # proportional gain
+    #k_i = 0.2 # integral gain
+    #k_d = 0.0 # derivative gain
 
     # set desired flight positions x and y
 
     #desired_x = 0.0
     #desired_y = 0.0
 
-
+    # z controller - up and down
     error_z = desired_z - msg.position.z
-    error_integral = error_integral + error_z*0.001
-    error_derivative = (error_z - error_previous)/0.001
+    linear_velocity_z = 1*error_z 
 
-    linear_velocity_z = k_p*error_z + k_i*error_integral + k_d*error_derivative
+    # y controller - side to side
+    error_y = desired_y - msg.position.y
+    linear_velocity_y = 0.2*error_y
     
+    # x controller - forward and backward
+    error_x = desired_x - msg.position.x
+    linear_velocity_x = 0.2*error_x
+
     print('')
     print(" position x ", drone_x)
     print(" position y ", drone_y)
@@ -199,11 +231,19 @@ def poseCallback(msg):
     # here I create a new Twist message (=linear velocity and angular velocity), I write
     # the value I computed for the linear velocity on z to achieve a flight height of 2m
     # and I publish it on the appropriate topic
+
+    #cmd_pub can be issuing multiple velocity commands at once?
+    
     cmdmsg = Twist()
-    #cmdmsg.linear.x = linear_velocity_x 
-    #cmdmsg.linear.y = linear_velocity_y 
+    
+    cmdmsg.linear.x = linear_velocity_x 
+    
+    cmdmsg.linear.y = linear_velocity_y 
+
     cmdmsg.linear.z = linear_velocity_z
+    
     #cmdmsg.angular.z = 0.1
+    
     cmd_pub.publish(cmdmsg)
 
 
