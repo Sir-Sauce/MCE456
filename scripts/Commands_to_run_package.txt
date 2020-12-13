@@ -1,0 +1,27 @@
+These are the relevant functions to run the quad following simulation
+Enter these in your terminal as per the groups listed below:
+
+Terminal 1 - Launch Simulation:
+
+	cd ~/catkin_ws
+
+	catkin_make
+
+	roslaunch ele_456 quad_following.launch
+
+Terminal 2 - Launch Controller
+	
+	rosrun ele_456 first_controller.py
+
+Terminal 3 - Drone Takeoff
+
+	rostopic pub /drone/takeoff   **Now while in the same command, click tab until it won't let you anymore. Then enter command**
+
+
+
+
+Additional useful commands
+
+use chmod with python script in scripts folder to make file executable
+NOTE this must be executed in the folder directory
+	chmod +x file_name.py
