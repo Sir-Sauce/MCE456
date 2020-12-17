@@ -1,7 +1,16 @@
-#!/usr/bin/env python
-#import sys
-#sys.path.append('/usr/include')  #Austin can get his life together
+"""
+ELE/MCE 456 - Found. of Robotics
+Final Project: Quadcoptor Following Ground Robot
 
+Group Number 2:
+
+Authors:
+Matthew Morgan
+Austin Clark
+Nataly Cruz
+"""
+
+### --- Libraries Used --- ###
 import rospy
 from std_msgs.msg import Empty
 from std_msgs.msg import String
@@ -18,7 +27,7 @@ import array
 import math
 import time
 
-# this is a global variable: all functions and methods in this file have access to it
+### --- Global Veriables --- ###
 cmd_pub = rospy.Publisher("/drone/cmd_vel", Twist, queue_size=1)
 error_integral = 0.0
 error_previous = 0.0
@@ -55,10 +64,7 @@ drone_z = 0.0
 drone_yaw = 0.0
 
 # For Converting ROS Image to OpenCV Image
-
 bridge = CvBridge() 
-
-
 
 # this is our callback function: it is executed any time a message on the specified topic
 # is received. In our case, the specified topic is /drone/gt_pose.
@@ -156,22 +162,8 @@ def poseCallback(msg):
 
         print('--------------------------------------------')
 
-
-    #if the drone sees the robot, then, 
-        # set the desired y
-            #desired_y = robot_y
-        # if pixel ht. x between 100 & 300 & z >= 5
-            # desired z -=
-        # elif pixel ht. x between 5 & 325
-            # set desired ht. to P cont. 
-            # desired_x = robot_x
-            # error_x = desired_x - msg.position.x
-        # elif first scan is true  
-            # desired z +=
-    # else 
-        # desired z = 20
-        # first scan = true
-
+    # Issue position from current location of drone in frame
+    # Pass parameters to PID controllers 
     if (cX != 0.0 or cY != 0.0):
         desired_y = robot_y
         desired_x = robot_x - 1
@@ -181,33 +173,13 @@ def poseCallback(msg):
         else:
             desired_z = msg.position.z   #slow the drone
             desired_z = desired_z + 0.5
-    #else:
-     #   desired_z = 20.0 
-
-
-        
+       
         
 
     print(" desired x ", robot_x, " desired y ", robot_y) ## robots actual coordinates from odom
     print(" target x pix ", cX, " target y pix ", cY) ## open image coordinates
     #print(" target x ", X, " target y ", Y) ## final target coordinates
 
-    # here I print the z component of the position (the height of drone)
-    #rospy.loginfo(rospy.get_caller_id() + "I heard %f", msg.position.z)
-
-    # set the desired flight height here, and the gains of the controller
-    
-    #desired_z = 20.0  #in meters
-
-
-    #k_p = 1.0 # proportional gain
-    #k_i = 0.2 # integral gain
-    #k_d = 0.0 # derivative gain
-
-    # set desired flight positions x and y
-
-    #desired_x = 0.0
-    #desired_y = 0.0
 
     # z controller - up and down
     error_z = desired_z - msg.position.z
@@ -228,22 +200,15 @@ def poseCallback(msg):
     print(" yaw z ", drone_yaw)
     print('')
     
-    # here I create a new Twist message (=linear velocity and angular velocity), I write
-    # the value I computed for the linear velocity on z to achieve a flight height of 2m
-    # and I publish it on the appropriate topic
 
     #cmd_pub can be issuing multiple velocity commands at once?
     
     cmdmsg = Twist()
     
     cmdmsg.linear.x = linear_velocity_x 
-    
     cmdmsg.linear.y = linear_velocity_y 
-
     cmdmsg.linear.z = linear_velocity_z
-    
-    #cmdmsg.angular.z = 0.1
-    
+
     cmd_pub.publish(cmdmsg)
 
 
@@ -258,7 +223,6 @@ def imageCallback(msg):
     global af
     global Ix0
     global Iy0 
-
     global bridge
     global cX
     global cY
@@ -288,12 +252,8 @@ def imageCallback(msg):
     else:
 	    cX, cY = 0, 0
 
-
     X = ((cX-Ix0)*drone_z)/af
     Y = ((cY-Iy0)*drone_z)/af
-
-
-
 
     # put text and highlight the center
     cv2.circle(cv_image, (cX, cY), 5, (255, 255, 255), -1)
@@ -315,14 +275,6 @@ def imageCallback(msg):
 
 
 
-
-
-
-
-
-
-
-
 # Function for positional data
 # Fucntion not used to give positional data to aerial drone
 # Use for reference def odomCallback(msg)
@@ -330,11 +282,6 @@ def odomCallback(msg):
     global robot_x; global robot_y
     robot_x = msg.pose.pose.position.x
     robot_y = msg.pose.pose.position.y
-
-
-
-
-
 
 
 def my_first_controller():
@@ -357,10 +304,6 @@ def my_first_controller():
 
     # spin() simply keeps python from exiting until this node is stopped
     rospy.spin()
-
-
-
-
 
 
 
